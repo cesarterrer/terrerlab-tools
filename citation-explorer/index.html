@@ -82,8 +82,6 @@ h1{font-family:Fraunces,serif;font-weight:600;font-size:32px;margin:0 0 .3rem;le
 
   <div class="ce-res" id="res">
     <div class="ce-paper" id="paper"></div>
-    <div class="ce-sec"><h3>Citations per year</h3><p class="sub">From OpenAlex (which indexes more citing works than the sentence data below). The current year is still in progress, so its bar is partial.</p><div id="ce-years"></div></div>
-    <div class="ce-sec"><h3>Where it's cited</h3><p class="sub">Citing papers by the country of their authors' institutions — hover a country for its count. One paper can count for several countries.</p><div id="ce-map" style="height:460px;width:100%;"></div><div id="ce-countries" class="sub" style="margin-top:.8rem;line-height:1.8;"></div></div>
     <div class="ce-sec"><h3>Why it's cited — themes</h3><p class="sub">Share of readable citing sentences that mention each theme (a sentence can hit several).</p><div id="themes"></div></div>
     <div class="ce-sec"><h3>The language of your citations</h3><p class="sub">Most-frequent meaningful words and multi-word phrases across the citing sentences (stopwords, generic filler and co-cited author names removed).</p>
       <div class="cols"><div><h4 style="margin:.2rem 0 .7rem;font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;">Words</h4><div class="chips" id="words"></div></div>
@@ -91,7 +89,9 @@ h1{font-family:Fraunces,serif;font-weight:600;font-size:32px;margin:0 0 .3rem;le
     <div class="ce-sec"><h3>Every citing sentence <span id="sentn" style="color:var(--mut);font-weight:400;"></span></h3>
       <div class="ce-tools"><input id="filter" placeholder="search sentences…"><select id="themesel"><option value="">All themes</option></select><a class="ce-dl" id="dl">↓ download CSV</a></div>
       <div id="sents"></div></div>
-    <p class="foot">Data: <a href="https://www.semanticscholar.org/product/api" target="_blank" rel="noopener" style="color:var(--acc)">Semantic Scholar Academic Graph API</a>. Only citing papers with open full text expose a sentence, so coverage is partial (often ~⅓). Author-name and theme filtering are heuristic. Designed by César Terrer with Claude Code.</p>
+    <div class="ce-sec"><h3>Citations per year</h3><p class="sub">Is interest holding up? From OpenAlex, which indexes more citing works than the sentence data above. The current year is still in progress, so its bar is partial.</p><div id="ce-years"></div></div>
+    <div class="ce-sec"><h3>Where it's cited</h3><p class="sub">Citing papers by the country of their authors' institutions — hover a country for its count. One paper can count for several countries.</p><div id="ce-map" style="height:460px;width:100%;"></div><div id="ce-countries" class="sub" style="margin-top:.8rem;line-height:1.8;"></div></div>
+    <p class="foot">Citing sentences from the <a href="https://www.semanticscholar.org/product/api" target="_blank" rel="noopener" style="color:var(--acc)">Semantic Scholar API</a>; per-year counts and countries from <a href="https://openalex.org" target="_blank" rel="noopener" style="color:var(--acc)">OpenAlex</a>. Only citing papers with open full text expose a sentence, so coverage is partial (often ~⅓). Author-name and theme filtering are heuristic. Designed by César Terrer with Claude Code.</p>
   </div>
 </div>
 
