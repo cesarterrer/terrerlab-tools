@@ -86,11 +86,11 @@ h1{font-family:Fraunces,serif;font-weight:600;font-size:32px;margin:0 0 .3rem;le
     <div class="ce-sec"><h3>The language of your citations</h3><p class="sub">Most-frequent meaningful words and multi-word phrases across the citing sentences (stopwords, generic filler and co-cited author names removed).</p>
       <div class="cols"><div><h4 style="margin:.2rem 0 .7rem;font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;">Words</h4><div class="chips" id="words"></div></div>
       <div><h4 style="margin:.2rem 0 .7rem;font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;">Phrases</h4><div class="chips" id="phrases"></div></div></div></div>
+    <div class="ce-sec"><h3>Citations per year</h3><p class="sub">Is interest holding up? From OpenAlex, which indexes more citing works than the sentence data above. The current year is still in progress, so its bar is partial.</p><div id="ce-years"></div></div>
+    <div class="ce-sec"><h3>Where it's cited</h3><p class="sub">Citing papers by the country of their authors' institutions — hover a country for its count. One paper can count for several countries.</p><div id="ce-map" style="height:460px;width:100%;"></div><div id="ce-countries" class="sub" style="margin-top:.8rem;line-height:1.8;"></div></div>
     <div class="ce-sec"><h3>Every citing sentence <span id="sentn" style="color:var(--mut);font-weight:400;"></span></h3>
       <div class="ce-tools"><input id="filter" placeholder="search sentences…"><select id="themesel"><option value="">All themes</option></select><a class="ce-dl" id="dl">↓ download CSV</a></div>
       <div id="sents"></div></div>
-    <div class="ce-sec"><h3>Citations per year</h3><p class="sub">Is interest holding up? From OpenAlex, which indexes more citing works than the sentence data above. The current year is still in progress, so its bar is partial.</p><div id="ce-years"></div></div>
-    <div class="ce-sec"><h3>Where it's cited</h3><p class="sub">Citing papers by the country of their authors' institutions — hover a country for its count. One paper can count for several countries.</p><div id="ce-map" style="height:460px;width:100%;"></div><div id="ce-countries" class="sub" style="margin-top:.8rem;line-height:1.8;"></div></div>
     <p class="foot">Citing sentences from the <a href="https://www.semanticscholar.org/product/api" target="_blank" rel="noopener" style="color:var(--acc)">Semantic Scholar API</a>; per-year counts and countries from <a href="https://openalex.org" target="_blank" rel="noopener" style="color:var(--acc)">OpenAlex</a>. Only citing papers with open full text expose a sentence, so coverage is partial (often ~⅓). Author-name and theme filtering are heuristic. Designed by César Terrer with Claude Code.</p>
   </div>
 </div>
@@ -151,57 +151,97 @@ function tokens(s,NAMES){
 }
 function topN(counter,n){return [...counter.entries()].sort((a,b)=>b[1]-a[1]).slice(0,n);}
 
+const soft=t=>'<span style="color:#9aa7a0;font-size:13px">'+t+'</span>';
+
+// Resolve the paper on OpenAlex. This is the reliable half of the tool: identity, the
+// per-year series and the country map all come from here, so they must never depend on
+// Semantic Scholar (whose free pool throttles and would otherwise take the whole page down).
+async function resolveOA(input){
+  const p=parseInput(input), mail="mailto=cterrer@mit.edu";
+  if(p.type==="doi") return jx(`https://api.openalex.org/works/https://doi.org/${encodeURIComponent(p.val)}?${mail}`);
+  const r=await jx(`https://api.openalex.org/works?search=${encodeURIComponent(p.val)}&per-page=1&${mail}`);
+  return (r.results||[])[0];
+}
+function paperCardOA(w){
+  const auth=(w.authorships||[]).map(a=>(a.author||{}).display_name).filter(Boolean);
+  const doi=(w.doi||"").replace("https://doi.org/","");
+  $("paper").innerHTML=`<h2>${esc(w.display_name||"Untitled")}</h2>`+
+    `<div class="meta">${esc(auth.slice(0,4).join(", "))}${auth.length>4?" et al.":""}${w.publication_year?" · "+w.publication_year:""}`+
+    `${(w.primary_location&&w.primary_location.source&&w.primary_location.source.display_name)?" · "+esc(w.primary_location.source.display_name):""}</div>`+
+    `<div class="ce-cov" id="ce-cov"><b>${w.cited_by_count||0}</b> citations (OpenAlex).`+
+    `${doi?` <a href="https://doi.org/${esc(doi)}" target="_blank" rel="noopener" style="color:var(--acc)">${esc(doi)} →</a>`:""}</div>`;
+}
+
 async function run(input){
   $("res").style.display="none";$("err").style.display="none";$("prog").style.display="block";$("go").disabled=true;
+  ["themes","words","phrases","sents","ce-years","ce-countries"].forEach(id=>{const e=$(id);if(e)e.innerHTML="";});
+  $("ce-map").innerHTML=""; $("sentn").textContent="";
   try{
-    $("progtxt").textContent="finding the paper…";$("progbar").style.width="6%";
-    let paper;
-    const p=parseInput(input);
-    const F="fields=title,year,citationCount,authors,externalIds";
-    if(p.type==="doi") paper=await j(`${API}/paper/DOI:${encodeURIComponent(p.val)}?${F}`);
-    else if(p.type==="id") paper=await j(`${API}/paper/${p.val}?${F}`);
-    else { const sr=await j(`${API}/paper/search?query=${encodeURIComponent(p.val)}&limit=1&fields=title,year,citationCount,authors,externalIds`); paper=(sr.data||[])[0]; }
-    if(!paper||!paper.paperId) throw new Error("Couldn't find that paper. Try a DOI.");
-    const authorNames=(paper.authors||[]).map(a=>surname(a.name)).filter(Boolean);
+    // ---- Phase 1 · OpenAlex: identity + per-year + map (always renders) ----
+    _prog("finding the paper…"); $("progbar").style.width="10%";
+    const w=await resolveOA(input);
+    if(!w||!w.id) throw new Error("Couldn't find that paper. Try a DOI.");
+    paperCardOA(w);
+    $("res").style.display="block";           // show results as soon as the paper is known
+    $("progbar").style.width="35%";
+    const oaDone=renderOA(w);                 // fills year chart + map independently
 
-    // fetch citations w/ contexts — 1000 per request keeps this to as few calls as possible
-    // (fewer requests = far less chance of the shared-pool throttle).
-    let off=0,scanned=0,withctx=0,cap=3000,cites=[],total=paper.citationCount||0;
-    while(off<cap){
-      $("progtxt").textContent=`reading citing papers… ${scanned}${total?(" / "+total):""}`;
-      $("progbar").style.width=Math.min(92,6+86*(total?scanned/total:off/cap))+"%";
-      const d=await j(`${API}/paper/${paper.paperId}/citations?fields=contexts,citingPaper.title,citingPaper.year,citingPaper.externalIds&offset=${off}&limit=1000`);
-      const batch=d.data||[]; if(!batch.length) break;
-      for(const it of batch){scanned++; const cs=it.contexts||[]; if(cs.length)withctx++; if(cs.length) cites.push(it);}
-      off+=1000;
-      if(batch.length<1000) break;
-      await sleep(900);
+    // ---- Phase 2 · Semantic Scholar: the citing sentences (may be throttled) ----
+    _prog("reading citing sentences…");
+    ["themes","words","phrases"].forEach(id=>$(id).innerHTML=soft("loading…"));
+    try{
+      await runS2(w);
+    }catch(e){
+      const msg=soft("Citing sentences are unavailable right now — Semantic Scholar is rate-limiting this network. The citation counts, per-year trend and map above are unaffected; retry in a minute for the sentence analysis.");
+      ["themes","words","phrases","sents"].forEach(id=>$(id).innerHTML=msg);
+      $("sentn").textContent="";
     }
-    // analyze
-    const rawCtx=[]; cites.forEach(c=>(c.contexts||[]).forEach(s=>rawCtx.push({s, cp:c.citingPaper})));
-    const NAMES=collectNames(rawCtx.map(r=>r.s), authorNames);
-    const words=new Map(),bi=new Map(),tri=new Map(),themeCt=THEMES.map(()=>0);
-    const inc=(m,k)=>m.set(k,(m.get(k)||0)+1);
-    for(const r of rawCtx){
-      const t=tokens(r.s,NAMES);
-      t.forEach(w=>inc(words,w));
-      for(let i=0;i<t.length-1;i++)inc(bi,t[i]+" "+t[i+1]);
-      for(let i=0;i<t.length-2;i++)inc(tri,t[i]+" "+t[i+1]+" "+t[i+2]);
-      THEMES.forEach(([n,re],i)=>{if(re.test(r.s))themeCt[i]++;});
-    }
-    render(paper,scanned,withctx,rawCtx,words,bi,tri,themeCt);
-    const _doi=(paper.externalIds||{}).DOI;
-    if(_doi) renderOA(_doi);
-    else {$("ce-years").innerHTML=$("ce-countries").innerHTML='<span style="color:#9aa7a0;font-size:13px">Needs a DOI for the per-year and country panels.</span>'; $("ce-map").innerHTML="";}
+    await oaDone;
   }catch(e){ $("err").textContent="⚠ "+e.message; $("err").style.display="block"; }
   finally{ $("prog").style.display="none"; $("go").disabled=false; }
 }
 
+// Semantic Scholar half: fetch the citing sentences and render themes/words/sentences.
+async function runS2(w){
+  const doi=(w.doi||"").replace("https://doi.org/","");
+  if(!doi) throw new Error("no DOI");
+  const F="fields=title,year,citationCount,authors,externalIds";
+  const paper=await j(`${API}/paper/DOI:${encodeURIComponent(doi)}?${F}`);
+  if(!paper||!paper.paperId) throw new Error("not on Semantic Scholar");
+  const authorNames=(paper.authors||[]).map(a=>surname(a.name)).filter(Boolean);
+  let off=0,scanned=0,withctx=0,cap=3000,cites=[],total=paper.citationCount||0;
+  while(off<cap){
+    _prog(`reading citing sentences… ${scanned}${total?(" / "+total):""}`);
+    $("progbar").style.width=Math.min(95,35+60*(total?scanned/total:off/cap))+"%";
+    const d=await j(`${API}/paper/${paper.paperId}/citations?fields=contexts,citingPaper.title,citingPaper.year,citingPaper.externalIds&offset=${off}&limit=1000`);
+    const batch=d.data||[]; if(!batch.length) break;
+    for(const it of batch){scanned++; const cs=it.contexts||[]; if(cs.length)withctx++; if(cs.length) cites.push(it);}
+    off+=1000;
+    if(batch.length<1000) break;
+    await sleep(900);
+  }
+  const rawCtx=[]; cites.forEach(c=>(c.contexts||[]).forEach(s=>rawCtx.push({s, cp:c.citingPaper})));
+  const NAMES=collectNames(rawCtx.map(r=>r.s), authorNames);
+  const words=new Map(),bi=new Map(),tri=new Map(),themeCt=THEMES.map(()=>0);
+  const inc=(m,k)=>m.set(k,(m.get(k)||0)+1);
+  for(const r of rawCtx){
+    const t=tokens(r.s,NAMES);
+    t.forEach(x=>inc(words,x));
+    for(let i=0;i<t.length-1;i++)inc(bi,t[i]+" "+t[i+1]);
+    for(let i=0;i<t.length-2;i++)inc(tri,t[i]+" "+t[i+1]+" "+t[i+2]);
+    THEMES.forEach(([n,re],i)=>{if(re.test(r.s))themeCt[i]++;});
+  }
+  const cov=$("ce-cov");
+  if(cov) cov.innerHTML+=` We could read a citing sentence in <b>${withctx}</b> of the ${scanned} papers Semantic Scholar indexes — <b>${rawCtx.length}</b> sentences analyzed below.`;
+  render(rawCtx,words,bi,tri,themeCt);
+}
+
 let CURRENT=[];
-function render(paper,scanned,withctx,rawCtx,words,bi,tri,themeCt){
-  const doi=(paper.externalIds||{}).DOI;
-  $("paper").innerHTML=`<h2>${esc(paper.title)}</h2><div class="meta">${esc((paper.authors||[]).slice(0,4).map(a=>a.name).join(", "))}${(paper.authors||[]).length>4?" et al.":""} · ${paper.year||""}</div>
-    <div class="ce-cov">Semantic Scholar lists <b>${paper.citationCount}</b> citations. We could read a sentence in <b>${withctx}</b> of the ${scanned} we scanned — <b>${rawCtx.length}</b> citing sentences analyzed. ${doi?`<a href="https://www.semanticscholar.org/paper/${paper.paperId}" target="_blank" rel="noopener" style="color:var(--acc)">view on Semantic Scholar →</a>`:""}</div>`;
+function render(rawCtx,words,bi,tri,themeCt){
+  if(!rawCtx.length){
+    const m=soft("No citing sentences available for this paper (they come from open-access full text).");
+    ["themes","words","phrases","sents"].forEach(id=>$(id).innerHTML=m); return;
+  }
   // themes
   const tmax=Math.max(1,...themeCt);
   $("themes").innerHTML=THEMES.map(([n],i)=>[n,themeCt[i]]).sort((a,b)=>b[1]-a[1]).map(([n,c])=>
@@ -215,7 +255,6 @@ function render(paper,scanned,withctx,rawCtx,words,bi,tri,themeCt){
   CURRENT=rawCtx;
   const sel=$("themesel"); sel.innerHTML='<option value="">All themes</option>'+THEMES.map(([n])=>`<option>${esc(n)}</option>`).join("");
   drawSents();
-  $("res").style.display="block";
 }
 function drawSents(){
   const q=($("filter").value||"").toLowerCase(), th=$("themesel").value;
@@ -274,12 +313,11 @@ function renderMap(countries,cEl,mEl){
       const col=shade(n); if(el.setStyle) el.setStyle('fill',col); else if(el.shape&&el.shape.style) el.shape.style.fill=col; });
   }catch(e){ mEl.innerHTML=barFallback(top); }
 }
-async function renderOA(doi){
+async function renderOA(w){
   const yEl=document.getElementById("ce-years"),mEl=document.getElementById("ce-map"),cEl=document.getElementById("ce-countries");
-  yEl.innerHTML='<span style="color:#9aa7a0;font-size:13px">loading…</span>'; cEl.innerHTML=""; mEl.innerHTML='<span style="color:#9aa7a0;font-size:13px">loading map…</span>';
+  yEl.innerHTML=soft("loading…"); cEl.innerHTML=""; mEl.innerHTML=soft("loading map…");
   try{
     const mail="mailto=cterrer@mit.edu";
-    const w=await jx(`https://api.openalex.org/works/https://doi.org/${encodeURIComponent(doi)}?${mail}`);
     const py={}; (w.counts_by_year||[]).forEach(c=>py[c.year]=c.cited_by_count); yEl.innerHTML=renderYears(py);
     const oaid=w.id.split("/").pop(); let countries={},page=1;
     while(page<=8){
