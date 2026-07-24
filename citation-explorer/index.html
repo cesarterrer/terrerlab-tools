@@ -107,20 +107,21 @@ const THEMES=[
 const $=id=>document.getElementById(id);
 function esc(s){return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 const sleep=ms=>new Promise(x=>setTimeout(x,ms));
+function _prog(t){var e=document.getElementById('progtxt'); if(e)e.textContent=t;}
 async function j(url){
   // Semantic Scholar's shared pool throttles fast bursts; 429s often arrive WITHOUT CORS
   // headers, which the browser surfaces as a thrown "Failed to fetch" — so we retry on any
-  // failure with backoff, not just on a readable 429 status.
-  let lastErr;
+  // failure with backoff, not just on a readable 429 status. Show the retry so it never
+  // looks frozen.
   for(let a=0;a<6;a++){
     try{
       const r=await fetch(url,{headers:{"Accept":"application/json"}});
-      if(r.status===429||r.status>=500){await sleep(1500*(a+1));continue;}
+      if(r.status===429||r.status>=500){_prog("Semantic Scholar is busy — retrying "+(a+1)+"/6…");await sleep(1500*(a+1));continue;}
       if(!r.ok) throw new Error("HTTP "+r.status);
       return r.json();
-    }catch(e){ lastErr=e; await sleep(1500*(a+1)); }
+    }catch(e){ _prog("Semantic Scholar is busy — retrying "+(a+1)+"/6…"); await sleep(1500*(a+1)); }
   }
-  throw new Error("Semantic Scholar is rate-limiting right now — wait ~30s and try again. ("+(lastErr&&lastErr.message||"")+")");
+  throw new Error("Semantic Scholar is rate-limiting this network right now — please wait a minute, then try again.");
 }
 function parseInput(v){
   v=v.trim();
