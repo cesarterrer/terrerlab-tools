@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terrer Lab · Tools</title>
+<link rel="icon" href="https://terrerlab.com/wp-content/uploads/2026/07/terrerlab-siteicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--g:#1d8a67;--acc:#157a5b;--ink:#16211c;--mut:#6c7a72;--line:#e4e8e5;--bg:#f4f6f4;}
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:3rem 1.2rem 5rem;}
+.wrap{max-width:820px;margin:0 auto;}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:2rem;}
+.brand img{height:40px;} .brand a{color:var(--acc);text-decoration:none;font-size:13.5px;font-weight:500;}
+h1{font-family:Fraunces,serif;font-weight:600;font-size:34px;margin:0 0 .3rem;letter-spacing:-.01em;}
+.lede{color:var(--mut);line-height:1.6;margin:0 0 2.2rem;max-width:44em;}
+a.card{display:block;background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px 26px;margin-bottom:16px;
+  text-decoration:none;color:inherit;transition:transform .15s,box-shadow .15s,border-color .15s;}
+a.card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(20,40,30,.10);border-color:#cfe0d7;}
+.card h2{font-family:Fraunces,serif;font-weight:500;font-size:21px;margin:0 0 6px;}
+.card p{margin:0;color:#4a564f;font-size:14.5px;line-height:1.6;}
+.card .go{color:var(--acc);font-weight:600;font-size:13.5px;margin-top:12px;display:inline-block;}
+.soon{opacity:.6;} .soon:hover{transform:none;box-shadow:none;} .tag{font-size:11px;background:#eef4f0;color:var(--acc);border-radius:20px;padding:3px 9px;font-weight:600;margin-left:8px;vertical-align:middle;}
+.foot{font-size:12.5px;color:#7a8a80;border-top:1px solid var(--line);padding-top:1.2rem;margin-top:2.4rem;line-height:1.6;}
+.foot a{color:var(--acc);text-decoration:none;}
+</style></head><body><div class="wrap">
+  <div class="brand"><img src="https://terrerlab.com/wp-content/uploads/2026/07/logo.png" alt="Terrer Lab"><a href="https://terrerlab.com">terrerlab.com →</a></div>
+  <h1>Tools</h1>
+  <p class="lede">Small, self-contained web tools for research, designed by <b>César Terrer</b> with <b>Claude Code</b>. Free to use, no login. Each runs entirely in your browser.</p>
+
+  <a class="card" href="citation-explorer/">
+    <h2>Citation Explorer</h2>
+    <p>Paste a paper (DOI or title) and see <b>why</b> it gets cited — the actual sentences where other work references it, distilled into the words, phrases and themes people use. Surfaces reasons the abstract never leads with.</p>
+    <span class="go">Open the tool →</span>
+  </a>
+
+  <div class="card soon">
+    <h2>Zotero reference inserter <span class="tag">coming soon</span></h2>
+    <p>Add Zotero references into a document. Being set up next.</p>
+  </div>
+
+  <p class="foot">Built by the <a href="https://terrerlab.com">Terrer Lab</a> (MIT) with Claude Code · data for Citation Explorer from the <a href="https://www.semanticscholar.org/product/api">Semantic Scholar API</a>.</p>
+</div></body></html>

@@ -1,0 +1,233 @@
+<!doctype html><meta charset="utf-8">
+<title>Citation Explorer — why a paper gets cited</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--g:#1d8a67;--gd:#0f2417;--ink:#16211c;--mut:#6c7a72;--line:#e4e8e5;--bg:#f4f6f4;--acc:#157a5b;}
+*{box-sizing:border-box}
+body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:2.4rem 1.2rem 5rem;}
+.wrap{max-width:960px;margin:0 auto;}
+h1{font-family:Fraunces,serif;font-weight:600;font-size:32px;margin:0 0 .3rem;letter-spacing:-.01em;}
+.lede{color:var(--mut);line-height:1.6;margin:0 0 1.2rem;max-width:44em;}
+.ce-why{background:#eef4f0;border:1px solid #dbe7e0;border-left:4px solid var(--acc);border-radius:0 12px 12px 0;padding:16px 20px;margin:0 0 1.6rem;font-size:14.5px;line-height:1.65;color:#2a3830;max-width:52em;}
+.ce-why b{color:#123f30;} .ce-why a{color:var(--acc);text-decoration:none;} .ce-why a:hover{text-decoration:underline;}
+.ce-why .h{font-family:Fraunces,serif;font-weight:600;font-size:15.5px;color:var(--gd);}
+.ce-in{display:flex;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;}
+.ce-in input{flex:1;min-width:240px;border:1px solid #d7ddd8;border-radius:9px;padding:12px 14px;font-size:15px;font-family:inherit;color:var(--ink);}
+.ce-in input:focus{outline:2px solid #bfe3d3;border-color:var(--acc);}
+.ce-btn{background:var(--acc);color:#fff;border:0;border-radius:9px;padding:12px 22px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;}
+.ce-btn:hover{background:#0f6a4d;} .ce-btn:disabled{opacity:.55;cursor:default;}
+.ce-ex{font-size:12.5px;color:var(--mut);margin:.6rem 2px 0;}
+.ce-ex a{color:var(--acc);text-decoration:none;cursor:pointer;} .ce-ex a:hover{text-decoration:underline;}
+.ce-prog{margin:1.4rem 0;color:var(--mut);font-size:14px;display:none;}
+.ce-bar{height:5px;background:#e4 eae6;border-radius:3px;overflow:hidden;margin-top:8px;background:#e6ece8;}
+.ce-bar > i{display:block;height:100%;background:var(--acc);width:0;transition:width .3s;}
+.ce-err{display:none;background:#fdecea;border:1px solid #f5c6c0;color:#b3261e;border-radius:10px;padding:12px 16px;margin-top:1rem;font-size:14px;}
+.ce-res{display:none;margin-top:1.8rem;}
+.ce-paper{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:1.4rem;}
+.ce-paper h2{font-family:Fraunces,serif;font-weight:500;font-size:20px;margin:0 0 4px;line-height:1.3;}
+.ce-paper .meta{font-size:13.5px;color:var(--mut);}
+.ce-cov{font-size:13.5px;color:#39463f;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);line-height:1.5;}
+.ce-cov b{color:var(--acc);}
+.ce-sec{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:1.4rem;}
+.ce-sec h3{font-family:Fraunces,serif;font-weight:500;font-size:18px;margin:0 0 .2rem;}
+.ce-sec .sub{font-size:12.5px;color:var(--mut);margin:0 0 1rem;}
+.row{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13.5px;}
+.row .lab{width:210px;flex:0 0 auto;text-align:right;color:#39463f;}
+.row .track{flex:1;background:#eef2ef;border-radius:5px;height:20px;position:relative;overflow:hidden;}
+.row .track > i{display:block;height:100%;background:linear-gradient(90deg,#2ba97e,#157a5b);border-radius:5px;}
+.row .n{width:44px;flex:0 0 auto;color:var(--mut);font-variant-numeric:tabular-nums;}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;}
+@media(max-width:680px){.cols{grid-template-columns:1fr;}.row .lab{width:130px;}}
+.chips{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{background:#eef4f0;border:1px solid #dbe7e0;border-radius:20px;padding:5px 12px;font-size:13px;color:#23412f;}
+.chip b{color:var(--acc);margin-left:5px;}
+.ce-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:1rem;}
+.ce-tools input{flex:1;min-width:180px;border:1px solid #d7ddd8;border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;}
+.ce-tools select{border:1px solid #d7ddd8;border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;background:#fff;}
+.ce-dl{font-size:13px;color:var(--acc);cursor:pointer;text-decoration:none;font-weight:500;}
+.sent{border-top:1px solid var(--line);padding:13px 0;}
+.sent:first-child{border-top:0;}
+.sent .q{font-size:14.5px;line-height:1.6;color:#22302a;}
+.sent .q mark{background:#dff0e7;color:#0f5a41;padding:0 2px;border-radius:2px;}
+.sent .src{font-size:12.5px;color:var(--mut);margin-top:5px;}
+.sent .src a{color:var(--acc);text-decoration:none;} .sent .src a:hover{text-decoration:underline;}
+.foot{font-size:12.5px;color:#7a8a80;border-top:1px solid var(--line);padding-top:1.1rem;margin-top:2rem;line-height:1.6;}
+</style>
+
+<div class="wrap">
+  <h1>Citation Explorer</h1>
+  <p class="lede">Paste a paper (DOI or title) and see <b>why it gets cited</b> — the actual sentences where other papers reference it, distilled into the words, phrases and themes people use. Reasons you didn't expect often surface.</p>
+
+  <div class="ce-why">
+    <div class="h">Why this is interesting</div>
+    A citation count tells you <b>how often</b> your work is cited; this tells you <b>why</b>. Take our
+    <a href="https://doi.org/10.1038/s41558-019-0545-2" target="_blank" rel="noopener">2019 <i>Nature Climate Change</i> paper</a>
+    on how nitrogen and phosphorus limit the CO₂ fertilization of plant biomass. Reading the sentences where it is actually cited,
+    most references are to the <b>CO₂-fertilization estimate itself</b> and to <b>plant biomass</b> — <b>nitrogen</b> shows up about
+    three times more often than <b>phosphorus</b>, and a real slice cite the paper for its <b>method</b> rather than its finding.
+    Angles the abstract never leads with. Click the example below to see it, or paste any DOI to do the same for your own work.
+  </div>
+
+  <div class="ce-in">
+    <input id="q" type="text" placeholder="DOI, e.g. 10.1038/s41558-019-0545-2 — or a paper title" autocomplete="off">
+    <button class="ce-btn" id="go">Analyze</button>
+  </div>
+  <div class="ce-ex">Try: <a data-doi="10.1038/s41558-019-0545-2">Terrer et al. 2019, Nature Climate Change</a> · <a data-doi="10.1126/science.aaf4610">Terrer et al. 2016, Science</a></div>
+
+  <div class="ce-prog" id="prog">Working… <span id="progtxt"></span><div class="ce-bar"><i id="progbar"></i></div></div>
+  <div class="ce-err" id="err"></div>
+
+  <div class="ce-res" id="res">
+    <div class="ce-paper" id="paper"></div>
+    <div class="ce-sec"><h3>Why it's cited — themes</h3><p class="sub">Share of readable citing sentences that mention each theme (a sentence can hit several).</p><div id="themes"></div></div>
+    <div class="ce-sec"><h3>The language of your citations</h3><p class="sub">Most-frequent meaningful words and multi-word phrases across the citing sentences (stopwords, generic filler and co-cited author names removed).</p>
+      <div class="cols"><div><h4 style="margin:.2rem 0 .7rem;font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;">Words</h4><div class="chips" id="words"></div></div>
+      <div><h4 style="margin:.2rem 0 .7rem;font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;">Phrases</h4><div class="chips" id="phrases"></div></div></div></div>
+    <div class="ce-sec"><h3>Every citing sentence <span id="sentn" style="color:var(--mut);font-weight:400;"></span></h3>
+      <div class="ce-tools"><input id="filter" placeholder="search sentences…"><select id="themesel"><option value="">All themes</option></select><a class="ce-dl" id="dl">↓ download CSV</a></div>
+      <div id="sents"></div></div>
+    <p class="foot">Data: <a href="https://www.semanticscholar.org/product/api" target="_blank" rel="noopener" style="color:var(--acc)">Semantic Scholar Academic Graph API</a>. Only citing papers with open full text expose a sentence, so coverage is partial (often ~⅓). Author-name and theme filtering are heuristic. Designed by César Terrer with Claude Code.</p>
+  </div>
+</div>
+
+<script>
+const API="https://api.semanticscholar.org/graph/v1";
+const STOP=new Set("the of and to in a is that for with as are on by we this be an it from at was were which can may our their they these those has have had not but or if than then also more most such using used use study studies paper papers data results result found shown show reported report increase increased increasing effect effects response responses due both between across within under over into high higher low lower large however therefore thus e g ie eg al et cf ref figure fig table other others one two three model models approach based estimate estimated estimates change changes global been will would could should about only some many per via first second recent recently important role potential different similar suggest suggests suggested indicate indicates observed observations compared comparison including include included well less least given whereas while when where what how much rate rates level levels total number values value range areas area near non new non-".split(/\s+/));
+const THEMES=[
+ ["Nitrogen", /\bnitrogen\b|\bn[\s-]limit/i],
+ ["Phosphorus", /\bphosphorus\b|\bphosphate\b/i],
+ ["Nutrient limitation", /\bnutrient/i],
+ ["CO₂ fertilization / eCO₂", /\bfertili[sz]ation\b|\belevated co|\beco2\b|\bco2 fertil|\bco₂ fertil/i],
+ ["Plant biomass / growth", /\bbiomass\b|\bproductivity\b|\bplant growth\b/i],
+ ["Methods (models / ML / meta-analysis)", /\brandom forest\b|\bmachine learning\b|\bmeta-?analys|\bstatistical\b|\bregression\b/i],
+ ["Soil carbon", /\bsoil (organic )?carbon\b|\bsoc\b/i],
+ ["Mycorrhiza / symbiosis", /\bmycorrhiz|\bsymbio|\bfung/i],
+ ["Carbon sink / sequestration", /\bcarbon sink\b|\bland sink\b|\bsequestrat|\bterrestrial sink\b/i],
+];
+const $=id=>document.getElementById(id);
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const sleep=ms=>new Promise(x=>setTimeout(x,ms));
+async function j(url){
+  // Semantic Scholar's shared pool throttles fast bursts; 429s often arrive WITHOUT CORS
+  // headers, which the browser surfaces as a thrown "Failed to fetch" — so we retry on any
+  // failure with backoff, not just on a readable 429 status.
+  let lastErr;
+  for(let a=0;a<6;a++){
+    try{
+      const r=await fetch(url,{headers:{"Accept":"application/json"}});
+      if(r.status===429||r.status>=500){await sleep(1500*(a+1));continue;}
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.json();
+    }catch(e){ lastErr=e; await sleep(1500*(a+1)); }
+  }
+  throw new Error("Semantic Scholar is rate-limiting right now — wait ~30s and try again. ("+(lastErr&&lastErr.message||"")+")");
+}
+function parseInput(v){
+  v=v.trim();
+  const m=v.match(/10\.\d{4,9}\/[^\s"]+/);
+  if(m) return {type:"doi", val:m[0].replace(/[).,]+$/,"")};
+  const s2=v.match(/[0-9a-f]{40}/i); if(s2) return {type:"id", val:s2[0]};
+  return {type:"title", val:v};
+}
+function surname(name){const p=(name||"").trim().split(/\s+/);return (p[p.length-1]||"").toLowerCase().replace(/[^a-zà-ÿ-]/gi,"");}
+function collectNames(raw, extra){
+  const N=new Set(extra||[]);
+  const push=w=>{w=(w||"").toLowerCase();if(w.length>2)N.add(w);};
+  for(const c of raw){
+    let m; const et=/([A-Za-zÀ-ÿ]{3,})\s+et\s+al/g; while((m=et.exec(c)))push(m[1]);
+    const an=/([A-Z][a-zà-ÿ]{2,})\s+and\s+([A-Z][a-zà-ÿ]{2,})/g; while((m=an.exec(c))){push(m[1]);push(m[2]);}
+    const py=/([A-Z][a-zà-ÿ]{2,}),?\s*\(?(?:19|20)\d{2}/g; while((m=py.exec(c)))push(m[1]);
+  }
+  return N;
+}
+function tokens(s,NAMES){
+  return (s.toLowerCase().match(/[a-zà-ÿ][a-zà-ÿ-]+/g)||[]).filter(w=>w.length>2&&!STOP.has(w)&&!NAMES.has(w));
+}
+function topN(counter,n){return [...counter.entries()].sort((a,b)=>b[1]-a[1]).slice(0,n);}
+
+async function run(input){
+  $("res").style.display="none";$("err").style.display="none";$("prog").style.display="block";$("go").disabled=true;
+  try{
+    $("progtxt").textContent="finding the paper…";$("progbar").style.width="6%";
+    let paper;
+    const p=parseInput(input);
+    const F="fields=title,year,citationCount,authors,externalIds";
+    if(p.type==="doi") paper=await j(`${API}/paper/DOI:${encodeURIComponent(p.val)}?${F}`);
+    else if(p.type==="id") paper=await j(`${API}/paper/${p.val}?${F}`);
+    else { const sr=await j(`${API}/paper/search?query=${encodeURIComponent(p.val)}&limit=1&fields=title,year,citationCount,authors,externalIds`); paper=(sr.data||[])[0]; }
+    if(!paper||!paper.paperId) throw new Error("Couldn't find that paper. Try a DOI.");
+    const authorNames=(paper.authors||[]).map(a=>surname(a.name)).filter(Boolean);
+
+    // fetch citations w/ contexts — 1000 per request keeps this to as few calls as possible
+    // (fewer requests = far less chance of the shared-pool throttle).
+    let off=0,scanned=0,withctx=0,cap=3000,cites=[],total=paper.citationCount||0;
+    while(off<cap){
+      $("progtxt").textContent=`reading citing papers… ${scanned}${total?(" / "+total):""}`;
+      $("progbar").style.width=Math.min(92,6+86*(total?scanned/total:off/cap))+"%";
+      const d=await j(`${API}/paper/${paper.paperId}/citations?fields=contexts,citingPaper.title,citingPaper.year,citingPaper.externalIds&offset=${off}&limit=1000`);
+      const batch=d.data||[]; if(!batch.length) break;
+      for(const it of batch){scanned++; const cs=it.contexts||[]; if(cs.length)withctx++; if(cs.length) cites.push(it);}
+      off+=1000;
+      if(batch.length<1000) break;
+      await sleep(900);
+    }
+    // analyze
+    const rawCtx=[]; cites.forEach(c=>(c.contexts||[]).forEach(s=>rawCtx.push({s, cp:c.citingPaper})));
+    const NAMES=collectNames(rawCtx.map(r=>r.s), authorNames);
+    const words=new Map(),bi=new Map(),tri=new Map(),themeCt=THEMES.map(()=>0);
+    const inc=(m,k)=>m.set(k,(m.get(k)||0)+1);
+    for(const r of rawCtx){
+      const t=tokens(r.s,NAMES);
+      t.forEach(w=>inc(words,w));
+      for(let i=0;i<t.length-1;i++)inc(bi,t[i]+" "+t[i+1]);
+      for(let i=0;i<t.length-2;i++)inc(tri,t[i]+" "+t[i+1]+" "+t[i+2]);
+      THEMES.forEach(([n,re],i)=>{if(re.test(r.s))themeCt[i]++;});
+    }
+    render(paper,scanned,withctx,rawCtx,words,bi,tri,themeCt);
+  }catch(e){ $("err").textContent="⚠ "+e.message; $("err").style.display="block"; }
+  finally{ $("prog").style.display="none"; $("go").disabled=false; }
+}
+
+let CURRENT=[];
+function render(paper,scanned,withctx,rawCtx,words,bi,tri,themeCt){
+  const doi=(paper.externalIds||{}).DOI;
+  $("paper").innerHTML=`<h2>${esc(paper.title)}</h2><div class="meta">${esc((paper.authors||[]).slice(0,4).map(a=>a.name).join(", "))}${(paper.authors||[]).length>4?" et al.":""} · ${paper.year||""}</div>
+    <div class="ce-cov">Semantic Scholar lists <b>${paper.citationCount}</b> citations. We could read a sentence in <b>${withctx}</b> of the ${scanned} we scanned — <b>${rawCtx.length}</b> citing sentences analyzed. ${doi?`<a href="https://www.semanticscholar.org/paper/${paper.paperId}" target="_blank" rel="noopener" style="color:var(--acc)">view on Semantic Scholar →</a>`:""}</div>`;
+  // themes
+  const tmax=Math.max(1,...themeCt);
+  $("themes").innerHTML=THEMES.map(([n],i)=>[n,themeCt[i]]).sort((a,b)=>b[1]-a[1]).map(([n,c])=>
+    `<div class="row"><div class="lab">${esc(n)}</div><div class="track"><i style="width:${100*c/tmax}%"></i></div><div class="n">${c} · ${Math.round(100*c/Math.max(1,rawCtx.length))}%</div></div>`).join("");
+  // words / phrases
+  const wm=topN(words,24),wmax=Math.max(1,...wm.map(x=>x[1]));
+  $("words").innerHTML=wm.map(([w,c])=>`<span class="chip">${esc(w)}<b>${c}</b></span>`).join("");
+  const ph=topN(bi,14).concat(topN(tri,6));
+  $("phrases").innerHTML=ph.map(([w,c])=>`<span class="chip">${esc(w)}<b>${c}</b></span>`).join("");
+  // sentences
+  CURRENT=rawCtx;
+  const sel=$("themesel"); sel.innerHTML='<option value="">All themes</option>'+THEMES.map(([n])=>`<option>${esc(n)}</option>`).join("");
+  drawSents();
+  $("res").style.display="block";
+}
+function drawSents(){
+  const q=($("filter").value||"").toLowerCase(), th=$("themesel").value;
+  const thre=THEMES.find(t=>t[0]===th);
+  let list=CURRENT.filter(r=>(!q||r.s.toLowerCase().includes(q))&&(!thre||thre[1].test(r.s)));
+  $("sentn").textContent=`(${list.length})`;
+  $("sents").innerHTML=list.slice(0,300).map(r=>{
+    let q2=esc(r.s);
+    if(q) q2=q2.replace(new RegExp("("+q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","ig"),"<mark>$1</mark>");
+    const cp=r.cp||{},doi=(cp.externalIds||{}).DOI, url=doi?("https://doi.org/"+doi):(cp.paperId?("https://www.semanticscholar.org/paper/"+cp.paperId):null);
+    const src=`${esc(cp.title||"Unknown")}${cp.year?(" ("+cp.year+")"):""}`;
+    return `<div class="sent"><div class="q">${q2}</div><div class="src">— ${url?`<a href="${url}" target="_blank" rel="noopener">${src}</a>`:src}</div></div>`;
+  }).join("")||'<div class="sent" style="color:#7a8a80">No sentences match.</div>';
+}
+function csv(){
+  const rows=[["sentence","citing_paper","year","doi"]].concat(CURRENT.map(r=>{const cp=r.cp||{};return [r.s,cp.title||"",cp.year||"",(cp.externalIds||{}).DOI||""];}));
+  const out=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([out],{type:"text/csv"}));a.download="citations.csv";a.click();
+}
+$("go").onclick=()=>{const v=$("q").value.trim();if(v)run(v);};
+$("q").addEventListener("keydown",e=>{if(e.key==="Enter"&&$("q").value.trim())run($("q").value.trim());});
+document.querySelectorAll(".ce-ex a").forEach(a=>a.onclick=()=>{$("q").value=a.dataset.doi;run(a.dataset.doi);});
+$("filter").addEventListener("input",drawSents); $("themesel").addEventListener("change",drawSents); $("dl").onclick=csv;
+</script>
