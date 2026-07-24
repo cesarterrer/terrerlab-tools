@@ -1,6 +1,9 @@
 <!doctype html><meta charset="utf-8">
 <title>Citation Explorer — why a paper gets cited</title>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsvectormap@1.6.0/dist/jsvectormap.min.css">
+<script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.6.0/dist/jsvectormap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.6.0/dist/maps/world.js"></script>
 <style>
 :root{--g:#1d8a67;--gd:#0f2417;--ink:#16211c;--mut:#6c7a72;--line:#e4e8e5;--bg:#f4f6f4;--acc:#157a5b;}
 *{box-sizing:border-box}
@@ -79,6 +82,8 @@ h1{font-family:Fraunces,serif;font-weight:600;font-size:32px;margin:0 0 .3rem;le
 
   <div class="ce-res" id="res">
     <div class="ce-paper" id="paper"></div>
+    <div class="ce-sec"><h3>Citations per year</h3><p class="sub">From OpenAlex (which indexes more citing works than the sentence data below). The current year is still in progress, so its bar is partial.</p><div id="ce-years"></div></div>
+    <div class="ce-sec"><h3>Where it's cited</h3><p class="sub">Citing papers by the country of their authors' institutions — hover a country for its count. One paper can count for several countries.</p><div id="ce-map" style="height:460px;width:100%;"></div><div id="ce-countries" class="sub" style="margin-top:.8rem;line-height:1.8;"></div></div>
     <div class="ce-sec"><h3>Why it's cited — themes</h3><p class="sub">Share of readable citing sentences that mention each theme (a sentence can hit several).</p><div id="themes"></div></div>
     <div class="ce-sec"><h3>The language of your citations</h3><p class="sub">Most-frequent meaningful words and multi-word phrases across the citing sentences (stopwords, generic filler and co-cited author names removed).</p>
       <div class="cols"><div><h4 style="margin:.2rem 0 .7rem;font-size:14px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em;">Words</h4><div class="chips" id="words"></div></div>
@@ -185,6 +190,9 @@ async function run(input){
       THEMES.forEach(([n,re],i)=>{if(re.test(r.s))themeCt[i]++;});
     }
     render(paper,scanned,withctx,rawCtx,words,bi,tri,themeCt);
+    const _doi=(paper.externalIds||{}).DOI;
+    if(_doi) renderOA(_doi);
+    else {$("ce-years").innerHTML=$("ce-countries").innerHTML='<span style="color:#9aa7a0;font-size:13px">Needs a DOI for the per-year and country panels.</span>'; $("ce-map").innerHTML="";}
   }catch(e){ $("err").textContent="⚠ "+e.message; $("err").style.display="block"; }
   finally{ $("prog").style.display="none"; $("go").disabled=false; }
 }
@@ -221,6 +229,67 @@ function drawSents(){
     const src=`${esc(cp.title||"Unknown")}${cp.year?(" ("+cp.year+")"):""}`;
     return `<div class="sent"><div class="q">${q2}</div><div class="src">— ${url?`<a href="${url}" target="_blank" rel="noopener">${src}</a>`:src}</div></div>`;
   }).join("")||'<div class="sent" style="color:#7a8a80">No sentences match.</div>';
+}
+// --- OpenAlex panels: citations per year + choropleth country map ---
+async function jx(url){
+  for(let a=0;a<5;a++){
+    try{ const r=await fetch(url); if(r.status===429||r.status>=500){await sleep(1200*(a+1));continue;} if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
+    catch(e){ if(a>=4) throw e; await sleep(1200*(a+1)); }
+  }
+}
+function renderYears(py){
+  const ys=Object.keys(py).map(Number).sort((a,b)=>a-b);
+  if(!ys.length) return '<span style="color:#9aa7a0;font-size:13px">No yearly data.</span>';
+  const max=Math.max(1,...ys.map(y=>py[y])), bw=40,gap=13,H=185,base=H-24,top=16,W=ys.length*(bw+gap)+gap;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;font-family:Inter,sans-serif">`;
+  ys.forEach((y,i)=>{const h=(py[y]/max)*(base-top),x=gap+i*(bw+gap);
+    s+=`<rect x="${x}" y="${(base-h).toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="3" fill="#157a5b"/>`;
+    s+=`<text x="${x+bw/2}" y="${(base-h-4).toFixed(1)}" text-anchor="middle" font-size="10.5" fill="#39463f">${py[y]}</text>`;
+    s+=`<text x="${x+bw/2}" y="${H-6}" text-anchor="middle" font-size="10.5" fill="#6c7a72">${y}</text>`;});
+  return s+'</svg>';
+}
+function barFallback(top){
+  const max=Math.max(1,...top.map(t=>t[1]));
+  return top.slice(0,15).map(([c,n])=>`<div class="row"><div class="lab" style="width:56px;text-align:left">${c}</div><div class="track"><i style="width:${100*n/max}%"></i></div><div class="n">${n}</div></div>`).join("");
+}
+function renderMap(countries,cEl,mEl){
+  const top=Object.entries(countries).sort((a,b)=>b[1]-a[1]);
+  if(!top.length){mEl.innerHTML='<span style="color:#9aa7a0;font-size:13px">No country data.</span>';return;}
+  cEl.innerHTML='Top: '+top.slice(0,12).map(([c,n])=>`<b style="color:#157a5b">${c}</b> ${n}`).join(' · ');
+  const real={}; top.forEach(([c,n])=>real[c]=n);
+  if(typeof jsVectorMap==="undefined"){ mEl.innerHTML=barFallback(top); return; }
+  // colour each country ourselves on a log scale (one country can dominate; log spreads the tail).
+  const maxLog=Math.log(top[0][1]+1)||1, A=[0xcf,0xe8,0xdc], B=[0x0f,0x5a,0x41];
+  const shade=n=>{const t=Math.log(n+1)/maxLog; return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('');};
+  try{
+    mEl.innerHTML="";
+    if(window._ceMap&&window._ceMap.destroy) window._ceMap.destroy();
+    const map=new jsVectorMap({selector:mEl,map:"world",zoomButtons:true,zoomOnScroll:false,
+      regionStyle:{initial:{fill:"#eef2ef",stroke:"#fff","stroke-width":0.4}},
+      onRegionTooltipShow(event,tooltip,code){try{const v=real[code]||0;tooltip.text(tooltip.text()+': '+v+' citing paper'+(v===1?'':'s'),true);}catch(e){}}});
+    window._ceMap=map;
+    // colour each cited country ourselves (log scale spreads the heavy tail), setting the
+    // region's fill directly — jsVectorMap v1.6 won't take literal colours through `values`.
+    top.forEach(([code,n])=>{ const rg=map.regions&&map.regions[code], el=rg&&rg.element; if(!el)return;
+      const col=shade(n); if(el.setStyle) el.setStyle('fill',col); else if(el.shape&&el.shape.style) el.shape.style.fill=col; });
+  }catch(e){ mEl.innerHTML=barFallback(top); }
+}
+async function renderOA(doi){
+  const yEl=document.getElementById("ce-years"),mEl=document.getElementById("ce-map"),cEl=document.getElementById("ce-countries");
+  yEl.innerHTML='<span style="color:#9aa7a0;font-size:13px">loading…</span>'; cEl.innerHTML=""; mEl.innerHTML='<span style="color:#9aa7a0;font-size:13px">loading map…</span>';
+  try{
+    const mail="mailto=cterrer@mit.edu";
+    const w=await jx(`https://api.openalex.org/works/https://doi.org/${encodeURIComponent(doi)}?${mail}`);
+    const py={}; (w.counts_by_year||[]).forEach(c=>py[c.year]=c.cited_by_count); yEl.innerHTML=renderYears(py);
+    const oaid=w.id.split("/").pop(); let countries={},page=1;
+    while(page<=8){
+      const c=await jx(`https://api.openalex.org/works?filter=cites:${oaid}&per-page=200&select=id,authorships&page=${page}&${mail}`);
+      const res=c.results||[]; if(!res.length) break;
+      res.forEach(r=>{const set=new Set();(r.authorships||[]).forEach(a=>(a.institutions||[]).forEach(i=>{if(i.country_code)set.add(i.country_code);}));set.forEach(cc=>countries[cc]=(countries[cc]||0)+1);});
+      if(res.length<200) break; page++;
+    }
+    renderMap(countries,cEl,mEl);
+  }catch(e){ yEl.innerHTML='<span style="color:#9aa7a0;font-size:13px">Per-year / country data unavailable ('+e.message+').</span>'; mEl.innerHTML=""; }
 }
 function csv(){
   const rows=[["sentence","citing_paper","year","doi"]].concat(CURRENT.map(r=>{const cp=r.cp||{};return [r.s,cp.title||"",cp.year||"",(cp.externalIds||{}).DOI||""];}));
